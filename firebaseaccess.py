@@ -434,35 +434,32 @@ def send_message(user_id):
     else:
         return 'No message or user ID provided'
 
-
-@app.route('/broadcast_message', methods=['POST'])
+@app.route('/message_to_all')
+def message_to_all():
+    return render_template('message_to_all.html')
+@app.route('/broadcast_message', methods=['GET','POST'])
 def broadcast_message():
-    message = request.form.get('message')
-    users = auth.lisst_users()
+    message_text = request.form.get('message')
+    users = get_all_users()
 
     # Send the message to all users
     for user in users:
-        send_message_to_user(user['device_token'], message)
+        user_uid=user['uid']
+        user_doc_ref = db.collection('messages').document(user_uid)
+        user_doc = user_doc_ref.get().to_dict() or {}
+
+        # Add the new message to the user's messages list
+        messages = user_doc.get('messages', [])
+        messages.append(message_text)
+
+        # Update the user document with the new messages list
+        user_doc_ref.set({'messages': messages}, merge=True)
+
+        return 'Message sent successfully'
+    else:
+        return 'No message or user ID provided'
     
-    return "Message broadcasted successfully to all users"
-
-# Function to send message to user using Firebase Cloud Messaging
-def send_message_to_user(device_token, message):
-    # Construct the message
-    fcm_message = messaging.Message(
-        data={
-            'message': message
-        },
-        token=device_token
-    )
-
-    # Send the message
-    try:
-        response = messaging.send(fcm_message)
-        print("Message sent successfully:", response)
-    except Exception as e:
-        print("Error sending message:", e)
-
+   
 
 if __name__ == '__main__':
     try:
