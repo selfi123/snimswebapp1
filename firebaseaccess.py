@@ -382,28 +382,35 @@ def manage_userspage():
 @app.route('/live_preview')
 def live_preview():
     coordinates_ref = db.collection("coordinates")
-    docs = coordinates_ref.get()
+    docs = coordinates_ref.stream()  # Get all documents in the collection
     data_list = []
     for doc in docs:
         data = doc.to_dict()
-        # Extract latitude and longitude from GeoPoint
+        # Extract user UID from document ID
+        user_uid = doc.id
         if 'location' in data and isinstance(data['location'], firestore.GeoPoint):
             data['location'] = {'latitude': data['location'].latitude, 'longitude': data['location'].longitude}
+        # Add user UID to data
+        data['user_uid'] = user_uid
         data_list.append(data)
     return render_template('live_preview3.html', data_list=data_list)
 
-@app.route('/get_new_location_data')
-def get_new_location_data():
+ 
+
+@app.route('/get_coordinates')
+def get_coordinates():
     coordinates_ref = db.collection("coordinates")
     docs = coordinates_ref.get()
     data_list = []
     for doc in docs:
         data = doc.to_dict()
-        # Extract latitude and longitude from GeoPoint
-        if 'location' in data and isinstance(data['location'], firestore.GeoPoint):
-            data['location'] = {'latitude': data['location'].latitude, 'longitude': data['location'].longitude}
+        if 'location' and 'username' in data and isinstance(data['location'], firestore.GeoPoint):
+            data['location'] = {'latitude': data['location'].latitude, 'longitude': data['location'].longitude, 'username':data['username']}
+        # Add user UID to data
+        
         data_list.append(data)
     return jsonify(data_list)
+
 
 
 @app.route('/message_user/<user_id>', methods=['GET', 'POST'])
@@ -437,25 +444,29 @@ def send_message(user_id):
 @app.route('/message_to_all')
 def message_to_all():
     return render_template('message_to_all.html')
-@app.route('/broadcast_message', methods=['GET','POST'])
+@app.route('/broadcast_message', methods=['GET', 'POST'])
 def broadcast_message():
-    message_text = request.form.get('message')
-    users = get_all_users()
+    if request.method == 'POST':
+        message_text = request.form.get('message')
+        if message_text:
+            users = get_all_users()
 
-    # Send the message to all users
-    for user in users:
-        user_uid=user['uid']
-        user_doc_ref = db.collection('messages').document(user_uid)
-        user_doc = user_doc_ref.get().to_dict() or {}
+            # Send the message to all users
+            for user in users:
+                user_uid = user['uid']
+                user_doc_ref = db.collection('messages').document(user_uid)
+                user_doc = user_doc_ref.get().to_dict() or {}
 
-        # Add the new message to the user's messages list
-        messages = user_doc.get('messages', [])
-        messages.append(message_text)
+                # Add the new message to the user's messages list
+                messages = user_doc.get('messages', [])
+                messages.append(message_text)
 
-        # Update the user document with the new messages list
-        user_doc_ref.set({'messages': messages}, merge=True)
+                # Update the user document with the new messages list
+                user_doc_ref.set({'messages': messages}, merge=True)
 
-        return 'Message sent successfully'
+            return 'Message sent successfully'
+        else:
+            return 'No message provided'
     else:
         return 'No message or user ID provided'
     

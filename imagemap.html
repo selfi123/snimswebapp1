@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Hover Text Extraction</title>
+    <style>
+        #image-container {
+            position: relative;
+            display: inline-block;
+        }
+        #hover-text {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="image-container">
+    <img id="floor-image" src="static/Ground_Floor.jpg" usemap="#image-map" alt="Floor Map" />
+    <div id="hover-text"></div>
+</div>
+
+<map name="image-map">
+    <area id="text-area-1" shape="rect" coords="100,100,200,150" alt="Text Area 1" data-text="Room 1" />
+    <area id="text-area-2" shape="rect" coords="300,200,400,250" alt="Text Area 2" data-text="Room 2" />
+</map>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@2"></script>
+<script>
+    const image = document.getElementById('floor-image');
+    const hoverText = document.getElementById('hover-text');
+
+    function extractTextFromImage(x, y) {
+        Tesseract.recognize(
+            'static/Ground_Floor.jpg',
+            'eng',
+            { rectangle: { top: y, left: x, width: 50, height: 50 } } 
+        ).then(({ data: { text } }) => {
+            hoverText.innerText = text.trim() || 'No text found';
+            hoverText.style.left = `${x}px`;
+            hoverText.style.top = `${y}px`;
+            hoverText.style.display = 'block';
+        });
+    }
+
+    image.addEventListener('mousemove', function (event) {
+        const rect = image.getBoundingClientRect();
+        const x = Math.round(event.clientX - rect.left);
+        const y = Math.round(event.clientY - rect.top);
+        extractTextFromImage(x, y);
+    });
+
+    image.addEventListener('mouseleave', function () {
+        hoverText.style.display = 'none';
+    });
+</script>
+
+</body>
+</html>
